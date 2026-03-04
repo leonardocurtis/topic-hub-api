@@ -1,0 +1,14 @@
+spring:
+  application:
+    name: topic-hub
+
+  mongodb:
+    uri: mongodb://localhost:27017/topichub_api
+
+api:
+  security:
+    token:
+      secret: ${JWT_SECRET}
+
+springdoc:
+  packages-to-scan: io.github.leo.threadhub

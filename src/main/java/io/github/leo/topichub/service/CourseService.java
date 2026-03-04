@@ -1,0 +1,57 @@
+package io.github.leo.topichub.service;
+
+import io.github.leo.topichub.domain.model.Category;
+import io.github.leo.topichub.domain.model.Course;
+import io.github.leo.topichub.dto.request.CreateCourseRequest;
+import io.github.leo.topichub.dto.response.CoursesListResponse;
+import io.github.leo.topichub.dto.response.CreateCourseResponse;
+import io.github.leo.topichub.dto.response.PageResponse;
+import io.github.leo.topichub.exception.ConflictException;
+import io.github.leo.topichub.exception.ResourceNotFoundException;
+import io.github.leo.topichub.repository.CategoryRepository;
+import io.github.leo.topichub.repository.CourseRepository;
+import org.springframework.data.domain.Pageable;
+import org.springframework.stereotype.Service;
+
+import java.util.List;
+
+@Service
+public class CourseService {
+
+    private final CourseRepository courseRepository;
+    private final CategoryRepository categoryRepository;
+
+    public CourseService(CourseRepository courseRepository, CategoryRepository categoryRepository) {
+        this.courseRepository = courseRepository;
+        this.categoryRepository = categoryRepository;
+    }
+
+    public CreateCourseResponse createCourse(CreateCourseRequest request) {
+
+        List<Category> categories = categoryRepository.findAllById(request.categoryIds());
+
+        if (categories.isEmpty() || categories.size() != request.categoryIds().size()) {
+            throw new ResourceNotFoundException("One or more categories not found");
+        }
+
+        if (courseRepository.existsByNameIgnoreCase(request.name())) {
+            throw new ConflictException("Course with name " + request.name() + " already exists");
+        }
+
+        Course course = new Course();
+        course.setName(request.name());
+        course.setCategoryIds(request.categoryIds());
+
+        var savedCourse = courseRepository.save(course);
+
+        return new CreateCourseResponse(
+                savedCourse.getId(), savedCourse.getName(), savedCourse.getCreatedAt(), savedCourse.getCategoryIds());
+    }
+
+    public PageResponse<CoursesListResponse> listAllCategories(Pageable pp) {
+
+        var page = courseRepository.findAll(pp).map(co -> new CoursesListResponse(co.getId(), co.getName(), co.getCreatedAt(), co.getCategoryIds()));
+
+        return PageResponse.from(page);
+    }
+}
