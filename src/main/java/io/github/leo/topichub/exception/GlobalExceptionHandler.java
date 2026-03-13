@@ -74,4 +74,35 @@ public class GlobalExceptionHandler {
 
         return ResponseEntity.unprocessableContent().body(error);
     }
+
+    @ExceptionHandler(ForbiddenException.class)
+    public ResponseEntity<ApiError> handleForbiddenException(ForbiddenException ex, HttpServletRequest request) {
+
+        HttpStatus errorType = HttpStatus.FORBIDDEN;
+
+        ApiError error = new ApiError(
+                errorType.value(),
+                errorType.getReasonPhrase(),
+                ex.getMessage(),
+                request.getRequestURI(),
+                LocalDateTime.now());
+
+        return ResponseEntity.status(errorType).body(error);
+    }
+
+    @ExceptionHandler(InvalidPasswordException.class)
+    public ResponseEntity<ApiError> handleInvalidPasswordException(
+            InvalidPasswordException ex, HttpServletRequest request) {
+
+        HttpStatus errorType = HttpStatus.BAD_REQUEST;
+
+        ApiError error = new ApiError(
+                errorType.value(),
+                errorType.getReasonPhrase(),
+                ex.getMessage(),
+                request.getRequestURI(),
+                LocalDateTime.now());
+
+        return ResponseEntity.status(errorType).body(error);
+    }
 }

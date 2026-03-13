@@ -3,17 +3,19 @@ package io.github.leo.topichub.service;
 import io.github.leo.topichub.domain.model.Response;
 import io.github.leo.topichub.domain.model.Topic;
 import io.github.leo.topichub.domain.model.User;
+import io.github.leo.topichub.domain.valueobject.TopicStatus;
 import io.github.leo.topichub.dto.request.CreateAnswerRequest;
 import io.github.leo.topichub.dto.request.CreateTopicRequest;
 import io.github.leo.topichub.dto.request.DeactivateResponseRequest;
-import io.github.leo.topichub.dto.response.CreateAnswerResponse;
-import io.github.leo.topichub.dto.response.CreateTopicResponse;
+import io.github.leo.topichub.dto.request.UpdateTopicRequest;
+import io.github.leo.topichub.dto.response.*;
 import io.github.leo.topichub.exception.ResourceNotFoundException;
 import io.github.leo.topichub.exception.UnprocessableEntityException;
 import io.github.leo.topichub.repository.CourseRepository;
 import io.github.leo.topichub.repository.ResponseRepository;
 import io.github.leo.topichub.repository.TopicRepository;
 import io.github.leo.topichub.repository.UserRepository;
+import org.springframework.data.domain.Pageable;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Service;
 
@@ -153,5 +155,61 @@ public class TopicService {
 
         topic.handleSolutionRemoval(responseId);
         topicRepository.save(topic);
+    }
+
+    public PageResponse<TopicListResponse> listAllTopic(Pageable pp) {
+
+        var page = topicRepository
+                .findAllByActiveTrue(pp)
+                .map(t -> new TopicListResponse(
+                        t.getId(),
+                        t.getTitle(),
+                        t.getMessage(),
+                        t.getType(),
+                        t.getCreatedAt(),
+                        t.getStatus(),
+                        t.getAuthorId(),
+                        t.getCourseId(),
+                        t.isActive()));
+
+        return PageResponse.from(page);
+    }
+
+    public TopicDetailsResponse topicDetails(String id) {
+
+        var topic = topicRepository
+                .findByIdAndActiveTrue(id)
+                .orElseThrow(() -> new ResourceNotFoundException("Topic not found"));
+
+        return new TopicDetailsResponse(
+                topic.getId(),
+                topic.getTitle(),
+                topic.getMessage(),
+                topic.getType(),
+                topic.getCreatedAt(),
+                topic.getStatus(),
+                topic.getAuthorId(),
+                topic.getCourseId());
+    }
+
+    public UpdateTopicResponse updateTopic(String id, UpdateTopicRequest dto) {
+        var topic = topicRepository
+                .findEditableTopic(id, TopicStatus.OPEN)
+                .orElseThrow(() -> new ResourceNotFoundException("Topic not found"));
+
+        topic.setTitle(dto.title());
+        topic.setType(dto.type());
+        topic.setMessage(dto.message());
+
+        var savedTopic = topicRepository.save(topic);
+
+        return new UpdateTopicResponse(
+                savedTopic.getId(),
+                savedTopic.getTitle(),
+                savedTopic.getType(),
+                savedTopic.getMessage(),
+                savedTopic.getCreatedAt(),
+                savedTopic.getAuthorId(),
+                savedTopic.getCourseId());
     }
 }

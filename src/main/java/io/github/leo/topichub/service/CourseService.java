@@ -3,9 +3,8 @@ package io.github.leo.topichub.service;
 import io.github.leo.topichub.domain.model.Category;
 import io.github.leo.topichub.domain.model.Course;
 import io.github.leo.topichub.dto.request.CreateCourseRequest;
-import io.github.leo.topichub.dto.response.CoursesListResponse;
-import io.github.leo.topichub.dto.response.CreateCourseResponse;
-import io.github.leo.topichub.dto.response.PageResponse;
+import io.github.leo.topichub.dto.request.UpdateCourseRequest;
+import io.github.leo.topichub.dto.response.*;
 import io.github.leo.topichub.exception.ConflictException;
 import io.github.leo.topichub.exception.ResourceNotFoundException;
 import io.github.leo.topichub.repository.CategoryRepository;
@@ -50,8 +49,43 @@ public class CourseService {
 
     public PageResponse<CoursesListResponse> listAllCategories(Pageable pp) {
 
-        var page = courseRepository.findAll(pp).map(co -> new CoursesListResponse(co.getId(), co.getName(), co.getCreatedAt(), co.getCategoryIds()));
+        var page = courseRepository
+                .findAll(pp)
+                .map(co -> new CoursesListResponse(co.getId(), co.getName(), co.getCreatedAt(), co.getCategoryIds()));
 
         return PageResponse.from(page);
+    }
+
+    public UpdateCourseResponse updateCourse(String id, UpdateCourseRequest request) {
+        var course = courseRepository
+                .findByIdAndActiveTrue(id)
+                .orElseThrow(() -> new ResourceNotFoundException("Course with id " + id + " not found"));
+
+        course.setName(request.name());
+        course.setCategoryIds(request.categoryIds());
+
+        var savedCourse = courseRepository.save(course);
+
+        return new UpdateCourseResponse(
+                savedCourse.getId(), savedCourse.getName(), savedCourse.getCreatedAt(), savedCourse.getCategoryIds());
+    }
+
+    public void archiveCourse(String id) {
+
+        var course = courseRepository
+                .findByIdAndActiveTrue(id)
+                .orElseThrow(() -> new ResourceNotFoundException("Course not found"));
+
+        course.deactivate();
+        courseRepository.save(course);
+    }
+
+    public CourseDetailsResponse courseDetails(String id) {
+
+        var course = courseRepository
+                .findByIdAndActiveTrue(id)
+                .orElseThrow(() -> new ResourceNotFoundException("Course not found"));
+
+        return new CourseDetailsResponse(course.getId(), course.getName(), course.getCategoryIds(), course.isActive());
     }
 }

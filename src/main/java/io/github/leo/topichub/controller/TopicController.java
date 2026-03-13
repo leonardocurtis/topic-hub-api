@@ -3,12 +3,15 @@ package io.github.leo.topichub.controller;
 import io.github.leo.topichub.dto.request.CreateAnswerRequest;
 import io.github.leo.topichub.dto.request.CreateTopicRequest;
 import io.github.leo.topichub.dto.request.DeactivateResponseRequest;
-import io.github.leo.topichub.dto.response.CreateAnswerResponse;
-import io.github.leo.topichub.dto.response.CreateTopicResponse;
+import io.github.leo.topichub.dto.request.UpdateTopicRequest;
+import io.github.leo.topichub.dto.response.*;
 import io.github.leo.topichub.service.TopicService;
 import io.swagger.v3.oas.annotations.security.SecurityRequirement;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Sort;
+import org.springframework.data.web.PageableDefault;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
@@ -69,5 +72,34 @@ public class TopicController {
         topicService.deleteResponse(topicId, responseId, dto);
 
         return ResponseEntity.noContent().build();
+    }
+
+    @GetMapping()
+    public ResponseEntity<PageResponse<TopicListResponse>> listTopics(
+            @PageableDefault(
+                            sort = {"createdAt"},
+                            direction = Sort.Direction.ASC)
+                    Pageable pp) {
+
+        var page = topicService.listAllTopic(pp);
+
+        return ResponseEntity.ok(page);
+    }
+
+    @GetMapping("/{id}")
+    public ResponseEntity<TopicDetailsResponse> showTopicDetails(@PathVariable String id) {
+
+        var topic = topicService.topicDetails(id);
+
+        return ResponseEntity.ok(topic);
+    }
+
+    @PatchMapping("/{id}")
+    public ResponseEntity<UpdateTopicResponse> updateTopic(
+            @PathVariable String id, @RequestBody @Valid UpdateTopicRequest dto) {
+
+        var updatedTopic = topicService.updateTopic(id, dto);
+
+        return ResponseEntity.ok(updatedTopic);
     }
 }

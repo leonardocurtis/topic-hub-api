@@ -1,7 +1,5 @@
 package io.github.leo.topichub.dto.response;
 
-public record CreateCategoryResponse(
-        String id,
-        String name
-) {
-}
+import java.time.LocalDateTime;
+
+public record CreateCategoryResponse(String id, String name, LocalDateTime createdAt, boolean isActive) {}

@@ -1,9 +1,8 @@
 package io.github.leo.topichub.controller;
 
 import io.github.leo.topichub.dto.request.CreateCategoryRequest;
-import io.github.leo.topichub.dto.response.CategoriesListResponse;
-import io.github.leo.topichub.dto.response.CreateCategoryResponse;
-import io.github.leo.topichub.dto.response.PageResponse;
+import io.github.leo.topichub.dto.request.UpdateCategoryRequest;
+import io.github.leo.topichub.dto.response.*;
 import io.github.leo.topichub.service.CategoryService;
 import io.swagger.v3.oas.annotations.security.SecurityRequirement;
 import io.swagger.v3.oas.annotations.tags.Tag;
@@ -12,6 +11,7 @@ import org.springframework.data.domain.Pageable;
 import org.springframework.data.web.PageableDefault;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 
 @Tag(name = "Categories")
@@ -27,6 +27,7 @@ public class CategoryController {
     }
 
     @PostMapping()
+    @PreAuthorize("hasAnyRole('ADMIN','MODERATOR')")
     public ResponseEntity<CreateCategoryResponse> addCategory(@RequestBody @Valid CreateCategoryRequest request) {
 
         var category = categoryService.createCategory(request);
@@ -41,5 +42,31 @@ public class CategoryController {
         var page = categoryService.listAllCategories(pp);
 
         return ResponseEntity.ok(page);
+    }
+
+    @DeleteMapping("/{id}")
+    @PreAuthorize("hasRole('ADMIN')")
+    public ResponseEntity<Void> deactivateCategory(@PathVariable String id) {
+
+        categoryService.archiveCategory(id);
+
+        return ResponseEntity.noContent().build();
+    }
+
+    @PatchMapping("/{id}")
+    @PreAuthorize("hasAnyRole('ADMIN','MODERATOR')")
+    public ResponseEntity<UpdateCategoryResponse> updateCategory(
+            @PathVariable String id, @RequestBody @Valid UpdateCategoryRequest request) {
+
+        var updatedCategory = categoryService.updateCategory(id, request);
+
+        return ResponseEntity.ok(updatedCategory);
+    }
+
+    @GetMapping("/{id}")
+    public ResponseEntity<CategoryDetailsResponse> showCategoryDetails(@PathVariable String id) {
+        var category = categoryService.categoryDetails(id);
+
+        return ResponseEntity.ok(category);
     }
 }

@@ -7,4 +7,6 @@ import java.util.Optional;
 
 public interface CategoryRepository extends MongoRepository<Category, String> {
     Boolean existsByName(String name);
+
+    Optional<Category> findByIdAndActiveTrue(String id);
 }
