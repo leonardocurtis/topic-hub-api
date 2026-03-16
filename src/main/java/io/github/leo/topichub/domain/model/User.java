@@ -33,8 +33,7 @@ public class User implements UserDetails {
     @Setter
     private String password;
 
-    @Setter
-    private List<Role> roles;
+    private Role role = Role.USER;
 
     private AccountStatus status = AccountStatus.ACTIVE;
 
@@ -51,6 +50,10 @@ public class User implements UserDetails {
 
     private Instant lastSuspendedAt;
     private String lastSuspendedBy;
+
+    public void updateRole(Role role) {
+        this.role = role;
+    }
 
     public void deactivate(String userId) {
         this.lastDeactivatedAt = Instant.now();
@@ -75,7 +78,7 @@ public class User implements UserDetails {
 
     @Override
     public Collection<? extends GrantedAuthority> getAuthorities() {
-        return roles;
+        return List.of(role);
     }
 
     @Override

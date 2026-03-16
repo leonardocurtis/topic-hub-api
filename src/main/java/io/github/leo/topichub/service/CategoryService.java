@@ -46,7 +46,9 @@ public class CategoryService {
 
     public PageResponse<CategoriesListResponse> listAllCategories(Pageable pp) {
 
-        var page = categoryRepository.findAll(pp).map(c -> new CategoriesListResponse(c.getId(), c.getName()));
+        var page = categoryRepository
+                .findAll(pp)
+                .map(c -> new CategoriesListResponse(c.getId(), c.getName(), c.getCreatedAt()));
 
         return PageResponse.from(page);
     }
@@ -71,11 +73,11 @@ public class CategoryService {
                 .findByIdAndActiveTrue(id)
                 .orElseThrow(() -> new ResourceNotFoundException("Category not found"));
 
-        category.setName(request.name());
+        category.setName(request.name().toLowerCase().trim());
 
         var savedCategory = categoryRepository.save(category);
 
-        return new UpdateCategoryResponse(savedCategory.getId(), savedCategory.getName());
+        return new UpdateCategoryResponse(savedCategory.getId(), savedCategory.getName(), savedCategory.getCreatedAt());
     }
 
     public CategoryDetailsResponse categoryDetails(String id) {
@@ -84,6 +86,7 @@ public class CategoryService {
                 .findByIdAndActiveTrue(id)
                 .orElseThrow(() -> new ResourceNotFoundException("Category not found"));
 
-        return new CategoryDetailsResponse(category.getId(), category.getName(), category.isActive());
+        return new CategoryDetailsResponse(
+                category.getId(), category.getName(), category.getCreatedAt(), category.isActive());
     }
 }

@@ -4,11 +4,9 @@ import io.github.leo.topichub.domain.model.Response;
 import io.github.leo.topichub.domain.model.Topic;
 import io.github.leo.topichub.domain.model.User;
 import io.github.leo.topichub.domain.valueobject.TopicStatus;
-import io.github.leo.topichub.dto.request.CreateAnswerRequest;
-import io.github.leo.topichub.dto.request.CreateTopicRequest;
-import io.github.leo.topichub.dto.request.DeactivateResponseRequest;
-import io.github.leo.topichub.dto.request.UpdateTopicRequest;
+import io.github.leo.topichub.dto.request.*;
 import io.github.leo.topichub.dto.response.*;
+import io.github.leo.topichub.exception.ForbiddenException;
 import io.github.leo.topichub.exception.ResourceNotFoundException;
 import io.github.leo.topichub.exception.UnprocessableEntityException;
 import io.github.leo.topichub.repository.CourseRepository;
@@ -50,7 +48,7 @@ public class TopicService {
                 .orElseThrow(() -> new ResourceNotFoundException("User not found"));
 
         var course = courseRepository
-                .findById(dto.course())
+                .findByIdAndActiveTrue(dto.course())
                 .orElseThrow(() -> new ResourceNotFoundException("Course not found"));
 
         var topic = new Topic();
@@ -78,10 +76,10 @@ public class TopicService {
     public void deactivationTopic(String id) {
 
         var topic = topicRepository
-                .findByIdAndActiveTrue(id)
+                .findByIdAndStatus(id, TopicStatus.OPEN)
                 .orElseThrow(() -> new ResourceNotFoundException("Topic not found"));
 
-        topic.deactivate();
+        topic.suspend();
         topicRepository.save(topic);
     }
 
@@ -95,7 +93,7 @@ public class TopicService {
         var topic =
                 topicRepository.findById(topicId).orElseThrow(() -> new ResourceNotFoundException("Topic not found"));
 
-        if (!topic.isActive()) {
+        if (topic.getStatus() == TopicStatus.CLOSED) {
             throw new ResourceNotFoundException("Topic is inactive");
         }
 
@@ -114,22 +112,47 @@ public class TopicService {
                 savedResponse.getTopicId());
     }
 
-    public void markAsSolved(String topicId, String responseId) {
+    public AnswerResolvedResponse markAsSolved(String topicId, String responseId) {
+
+        var authenticatedUser =
+                (User) SecurityContextHolder.getContext().getAuthentication().getPrincipal();
+
+        String authenticatedUserId = authenticatedUser.getId();
 
         Topic topic =
                 topicRepository.findById(topicId).orElseThrow(() -> new ResourceNotFoundException("Topic not found"));
+
+        boolean isOwner = authenticatedUserId.equals(topic.getAuthorId());
+
+        boolean isPrivileged = authenticatedUser.getAuthorities().stream()
+                .anyMatch(auth -> auth.getAuthority().equals("ROLE_ADMIN")
+                        || auth.getAuthority().equals("ROLE_MODERATOR"));
+
+        if (!isOwner && !isPrivileged) {
+            throw new ForbiddenException("Only the topic creator, admins or moderators can mark it as resolved");
+        }
 
         Response response = responseRepository
                 .findById(responseId)
                 .orElseThrow(() -> new ResourceNotFoundException("Response not found"));
 
         if (!response.getTopicId().equals(topicId)) {
-            throw new UnprocessableEntityException("Response does not belong to this topic.");
+            throw new UnprocessableEntityException("Response does not belong to this topic");
         }
 
         topic.markAsSolved(responseId);
 
-        topicRepository.save(topic);
+        var savedTopic = topicRepository.save(topic);
+
+        return new AnswerResolvedResponse(
+                savedTopic.getId(),
+                savedTopic.getTitle(),
+                savedTopic.getType(),
+                savedTopic.getMessage(),
+                savedTopic.getCreatedAt(),
+                savedTopic.getStatus(),
+                savedTopic.getLastSolvedResponseId(),
+                savedTopic.getCourseId());
     }
 
     public void deleteResponse(String topicId, String responseId, DeactivateResponseRequest request) {
@@ -153,14 +176,16 @@ public class TopicService {
         var topic =
                 topicRepository.findById(topicId).orElseThrow(() -> new ResourceNotFoundException("Topic not found"));
 
-        topic.handleSolutionRemoval(responseId);
-        topicRepository.save(topic);
+        if (topic.getLastSolvedResponseId() != null) {
+            topic.handleSolutionRemoval(responseId);
+            topicRepository.save(topic);
+        }
     }
 
     public PageResponse<TopicListResponse> listAllTopic(Pageable pp) {
 
         var page = topicRepository
-                .findAllByActiveTrue(pp)
+                .findAll(pp)
                 .map(t -> new TopicListResponse(
                         t.getId(),
                         t.getTitle(),
@@ -169,17 +194,14 @@ public class TopicService {
                         t.getCreatedAt(),
                         t.getStatus(),
                         t.getAuthorId(),
-                        t.getCourseId(),
-                        t.isActive()));
+                        t.getCourseId()));
 
         return PageResponse.from(page);
     }
 
     public TopicDetailsResponse topicDetails(String id) {
 
-        var topic = topicRepository
-                .findByIdAndActiveTrue(id)
-                .orElseThrow(() -> new ResourceNotFoundException("Topic not found"));
+        var topic = topicRepository.findById(id).orElseThrow(() -> new ResourceNotFoundException("Topic not found"));
 
         return new TopicDetailsResponse(
                 topic.getId(),
@@ -194,12 +216,20 @@ public class TopicService {
 
     public UpdateTopicResponse updateTopic(String id, UpdateTopicRequest dto) {
         var topic = topicRepository
-                .findEditableTopic(id, TopicStatus.OPEN)
+                .findByIdAndStatus(id, TopicStatus.OPEN)
                 .orElseThrow(() -> new ResourceNotFoundException("Topic not found"));
 
-        topic.setTitle(dto.title());
-        topic.setType(dto.type());
-        topic.setMessage(dto.message());
+        if (dto.title() != null && !dto.title().isEmpty()) {
+            topic.setTitle(dto.title());
+        }
+
+        if (dto.type() != null) {
+            topic.setType(dto.type());
+        }
+
+        if (dto.message() != null && !dto.message().isEmpty()) {
+            topic.setMessage(dto.message());
+        }
 
         var savedTopic = topicRepository.save(topic);
 
@@ -211,5 +241,32 @@ public class TopicService {
                 savedTopic.getCreatedAt(),
                 savedTopic.getAuthorId(),
                 savedTopic.getCourseId());
+    }
+
+    public CloseTopicResponse closeTopic(String id, CloseTopicRequest request) {
+
+        var authenticatedUser =
+                (User) SecurityContextHolder.getContext().getAuthentication().getPrincipal();
+
+        String moderatorId = authenticatedUser.getId();
+
+        var topic = topicRepository.findById(id).orElseThrow(() -> new ResourceNotFoundException("Topic not found"));
+
+        topic.close(moderatorId, request.reason());
+        var savedTopic = topicRepository.save(topic);
+
+        return new CloseTopicResponse(
+                savedTopic.getId(),
+                savedTopic.getTitle(),
+                savedTopic.getType(),
+                savedTopic.getMessage(),
+                savedTopic.getCreatedAt(),
+                savedTopic.getStatus(),
+                savedTopic.getAuthorId(),
+                savedTopic.getCourseId(),
+                savedTopic.getLastSolvedResponseId(),
+                savedTopic.getClosedReason(),
+                savedTopic.getClosedBy(),
+                savedTopic.getClosedAt());
     }
 }

@@ -1,16 +1,21 @@
 package io.github.leo.topichub.dto.response;
 
+import io.github.leo.topichub.domain.valueobject.TopicCloseReason;
 import io.github.leo.topichub.domain.valueobject.TopicStatus;
 import io.github.leo.topichub.domain.valueobject.TopicType;
 
 import java.time.Instant;
 
-public record TopicListResponse(
+public record CloseTopicResponse(
         String id,
         String title,
+        TopicType type,
         String message,
-        TopicType topicType,
         Instant createdAt,
         TopicStatus status,
-        String author,
-        String course) {}
+        String authorId,
+        String courseId,
+        String lastSolvedResponseId,
+        TopicCloseReason closedReason,
+        String closedBy,
+        Instant closedAt) {}

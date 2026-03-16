@@ -1,14 +1,15 @@
 package io.github.leo.topichub.domain.model;
 
+import io.github.leo.topichub.domain.valueobject.TopicCloseReason;
 import io.github.leo.topichub.domain.valueobject.TopicStatus;
 import io.github.leo.topichub.domain.valueobject.TopicType;
+import io.github.leo.topichub.exception.ConflictException;
 import lombok.*;
 import org.springframework.data.annotation.CreatedDate;
 import org.springframework.data.annotation.Id;
 import org.springframework.data.mongodb.core.mapping.Document;
-import org.springframework.data.mongodb.core.mapping.Field;
 
-import java.time.LocalDateTime;
+import java.time.Instant;
 
 @Getter
 @NoArgsConstructor
@@ -30,7 +31,7 @@ public class Topic {
     private String message;
 
     @CreatedDate
-    private LocalDateTime createdAt;
+    private Instant createdAt;
 
     @Setter
     private TopicStatus status;
@@ -42,23 +43,42 @@ public class Topic {
     private String courseId;
 
     @Setter
-    private String solvedResponseId;
+    private String lastSolvedResponseId;
 
-    @Field("isActive")
-    private boolean active = true;
+    private TopicCloseReason closedReason;
+    private String closedBy;
+    private Instant closedAt;
 
-    public void deactivate() {
-        this.active = false;
+    public void suspend() {
+        this.status = TopicStatus.SUSPENDED;
+    }
+
+    public void close(String userId, TopicCloseReason reason) {
+
+        if (this.status == TopicStatus.SUSPENDED) {
+            throw new ConflictException("Topic suspended cannot be closed");
+        }
+
+        if (this.status == TopicStatus.CLOSED) {
+            throw new ConflictException("Topic is already closed");
+        }
+
         this.status = TopicStatus.CLOSED;
+        this.closedAt = Instant.now();
+        this.closedBy = userId;
+        this.closedReason = reason;
     }
 
     public void markAsSolved(String responseId) {
-        this.solvedResponseId = responseId;
+        this.lastSolvedResponseId = responseId;
         this.status = TopicStatus.SOLVED;
     }
 
     public void reopen() {
-        this.solvedResponseId = null;
+
+        if (this.status == TopicStatus.CLOSED) {
+            throw new ConflictException("Closed topics cannot be reopened");
+        }
         this.status = TopicStatus.OPEN;
     }
 
@@ -67,7 +87,8 @@ public class Topic {
     }
 
     public void handleSolutionRemoval(String responseId) {
-        if (responseId.equals(this.solvedResponseId)) {
+        if (this.lastSolvedResponseId != null && this.lastSolvedResponseId.equals(responseId)) {
+            this.lastSolvedResponseId = null;
             reopen();
         }
     }

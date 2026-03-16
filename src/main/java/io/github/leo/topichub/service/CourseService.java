@@ -62,7 +62,10 @@ public class CourseService {
                 .orElseThrow(() -> new ResourceNotFoundException("Course with id " + id + " not found"));
 
         course.setName(request.name());
-        course.setCategoryIds(request.categoryIds());
+
+        if (request.categoryIds() != null && !request.categoryIds().isEmpty()) {
+            course.setCategoryIds(request.categoryIds());
+        }
 
         var savedCourse = courseRepository.save(course);
 
@@ -82,10 +85,9 @@ public class CourseService {
 
     public CourseDetailsResponse courseDetails(String id) {
 
-        var course = courseRepository
-                .findByIdAndActiveTrue(id)
-                .orElseThrow(() -> new ResourceNotFoundException("Course not found"));
+        var course = courseRepository.findById(id).orElseThrow(() -> new ResourceNotFoundException("Course not found"));
 
-        return new CourseDetailsResponse(course.getId(), course.getName(), course.getCategoryIds(), course.isActive());
+        return new CourseDetailsResponse(
+                course.getId(), course.getName(), course.getCreatedAt(), course.isActive(), course.getCategoryIds());
     }
 }

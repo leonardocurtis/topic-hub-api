@@ -27,7 +27,7 @@ public class CourseController {
     }
 
     @PostMapping()
-    @PreAuthorize("hasRole('ADMIN') or hasRole('MODERATOR')")
+    @PreAuthorize("hasAnyRole('ADMIN','MODERATOR')")
     public ResponseEntity<CreateCourseResponse> createCourse(@RequestBody @Valid CreateCourseRequest request) {
         var course = courseService.createCourse(request);
 
@@ -44,7 +44,7 @@ public class CourseController {
     }
 
     @PatchMapping("/{id}")
-    @PreAuthorize("hasRole('ADMIN') or hasRole('MODERATOR')")
+    @PreAuthorize("hasAnyRole('ADMIN','MODERATOR')")
     public ResponseEntity<UpdateCourseResponse> updateCourse(
             @PathVariable String id, @RequestBody @Valid UpdateCourseRequest dto) {
 

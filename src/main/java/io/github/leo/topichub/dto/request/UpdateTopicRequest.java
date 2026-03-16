@@ -1,10 +1,13 @@
 package io.github.leo.topichub.dto.request;
 
 import io.github.leo.topichub.domain.valueobject.TopicType;
-import jakarta.validation.constraints.NotBlank;
-import jakarta.validation.constraints.NotNull;
+import jakarta.validation.constraints.Size;
 
 public record UpdateTopicRequest(
-        @NotBlank String title,
-        @NotNull TopicType type,
-        @NotBlank String message) {}
+        @Size(min = 1, message = "Title must not be empty if provided")
+        String title,
+
+        TopicType type,
+
+        @Size(min = 1, message = "Message must not be empty if provided")
+        String message) {}

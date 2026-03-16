@@ -4,13 +4,12 @@ import io.github.leo.topichub.domain.valueobject.AccountStatus;
 import io.github.leo.topichub.domain.valueobject.Role;
 
 import java.time.Instant;
-import java.util.List;
 
 public record SuspendUserResponse(
         String id,
         String name,
         String email,
-        List<Role> roles,
+        Role role,
         AccountStatus status,
         Instant createdAt,
         Instant suspendedAt,

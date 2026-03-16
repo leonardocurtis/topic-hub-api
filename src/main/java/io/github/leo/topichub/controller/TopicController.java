@@ -1,9 +1,6 @@
 package io.github.leo.topichub.controller;
 
-import io.github.leo.topichub.dto.request.CreateAnswerRequest;
-import io.github.leo.topichub.dto.request.CreateTopicRequest;
-import io.github.leo.topichub.dto.request.DeactivateResponseRequest;
-import io.github.leo.topichub.dto.request.UpdateTopicRequest;
+import io.github.leo.topichub.dto.request.*;
 import io.github.leo.topichub.dto.response.*;
 import io.github.leo.topichub.service.TopicService;
 import io.swagger.v3.oas.annotations.security.SecurityRequirement;
@@ -56,15 +53,16 @@ public class TopicController {
     }
 
     @PatchMapping("/{topicId}/responses/{responseId}/solve")
-    public ResponseEntity<Void> markAsSolved(@PathVariable String topicId, @PathVariable String responseId) {
+    public ResponseEntity<AnswerResolvedResponse> markAsSolved(
+            @PathVariable String topicId, @PathVariable String responseId) {
 
-        topicService.markAsSolved(topicId, responseId);
+        var response = topicService.markAsSolved(topicId, responseId);
 
-        return ResponseEntity.ok().build();
+        return ResponseEntity.ok(response);
     }
 
     @PatchMapping("/{topicId}/responses/{responseId}/deactivate")
-    @PreAuthorize("hasRole('ADMIN') or hasRole('MODERATOR')")
+    @PreAuthorize("hasAnyRole('ADMIN','MODERATOR')")
     public ResponseEntity<Void> deleteResponse(
             @PathVariable String topicId,
             @PathVariable String responseId,
@@ -101,5 +99,14 @@ public class TopicController {
         var updatedTopic = topicService.updateTopic(id, dto);
 
         return ResponseEntity.ok(updatedTopic);
+    }
+
+    @PatchMapping("/{id}/close")
+    @PreAuthorize("hasAnyRole('ADMIN','MODERATOR')")
+    public ResponseEntity<CloseTopicResponse> closeTopic(@PathVariable String id, @RequestBody CloseTopicRequest dto) {
+
+        var response = topicService.closeTopic(id, dto);
+
+        return ResponseEntity.ok(response);
     }
 }

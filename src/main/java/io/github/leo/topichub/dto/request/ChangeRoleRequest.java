@@ -1,6 +1,6 @@
 package io.github.leo.topichub.dto.request;
 
 import io.github.leo.topichub.domain.valueobject.Role;
-import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.NotNull;
 
-public record ChangeRoleRequest(@NotBlank Role role) {}
+public record ChangeRoleRequest(@NotNull Role role) {}

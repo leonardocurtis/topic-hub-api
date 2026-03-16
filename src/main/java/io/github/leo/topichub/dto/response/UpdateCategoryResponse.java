@@ -1,3 +1,5 @@
 package io.github.leo.topichub.dto.response;
 
-public record UpdateCategoryResponse(String id, String name) {}
+import java.time.Instant;
+
+public record UpdateCategoryResponse(String id, String name, Instant createdAt) {}

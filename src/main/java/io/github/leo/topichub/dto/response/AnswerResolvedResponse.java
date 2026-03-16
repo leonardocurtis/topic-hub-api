@@ -5,12 +5,12 @@ import io.github.leo.topichub.domain.valueobject.TopicType;
 
 import java.time.Instant;
 
-public record TopicListResponse(
+public record AnswerResolvedResponse(
         String id,
         String title,
+        TopicType type,
         String message,
-        TopicType topicType,
         Instant createdAt,
         TopicStatus status,
-        String author,
-        String course) {}
+        String solvedResponseId,
+        String courseId) {}

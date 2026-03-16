@@ -17,8 +17,6 @@ import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 
-import java.util.List;
-
 @Service
 public class UserService {
 
@@ -49,7 +47,6 @@ public class UserService {
         user.setName(dto.name());
         user.setEmail(dto.email());
         user.setPassword(encoder.encode(dto.password()));
-        user.setRoles(List.of(Role.USER));
 
         var savedUser = repository.save(user);
 
@@ -57,13 +54,20 @@ public class UserService {
     }
 
     public ChangeRoleResponse changeRole(String id, ChangeRoleRequest dto) {
+        var authenticatedUser =
+                (User) SecurityContextHolder.getContext().getAuthentication().getPrincipal();
+
+        if (authenticatedUser.getId().equals(id)) {
+            throw new ForbiddenException("You cannot change your own role");
+        }
+
         var user = repository.findById(id).orElseThrow(() -> new ResourceNotFoundException("User not found"));
 
-        user.setRoles(List.of(dto.role()));
+        user.updateRole(dto.role());
 
         var savedUser = repository.save(user);
 
-        return new ChangeRoleResponse(savedUser.getId(), savedUser.getName(), savedUser.getRoles());
+        return new ChangeRoleResponse(savedUser.getId(), savedUser.getName(), savedUser.getRole());
     }
 
     public UserDetailsResponse getUserDetails(String id) {
@@ -74,7 +78,7 @@ public class UserService {
                 user.getId(),
                 user.getName(),
                 user.getEmail(),
-                user.getRoles(),
+                user.getRole(),
                 user.getCreatedAt(),
                 user.getLastDeactivatedBy(),
                 user.getLastDeactivatedAt(),
@@ -98,7 +102,7 @@ public class UserService {
 
         var user = repository.findById(id).orElseThrow(() -> new ResourceNotFoundException("User not found"));
 
-        if (user.getRoles().contains(Role.ADMIN)) {
+        if (user.getRole() == (Role.ADMIN)) {
             throw new ForbiddenException("Cannot suspend admin users");
         }
 
@@ -113,7 +117,7 @@ public class UserService {
                 savedUser.getId(),
                 savedUser.getName(),
                 savedUser.getEmail(),
-                savedUser.getRoles(),
+                savedUser.getRole(),
                 savedUser.getStatus(),
                 savedUser.getCreatedAt(),
                 savedUser.getLastSuspendedAt(),
@@ -126,7 +130,7 @@ public class UserService {
                 .findByIdAndStatus(userId, AccountStatus.ACTIVE)
                 .orElseThrow(() -> new ResourceNotFoundException("User not found"));
 
-        return new UserProfileResponse(user.getName(), user.getEmail(), user.getRoles(), user.getCreatedAt());
+        return new UserProfileResponse(user.getName(), user.getEmail(), user.getRole(), user.getCreatedAt());
     }
 
     public UpdateUserProfileResponse updateMe(UpdateUserRequest request) {
@@ -223,7 +227,7 @@ public class UserService {
                 savedUser.getId(),
                 savedUser.getName(),
                 savedUser.getEmail(),
-                savedUser.getRoles(),
+                savedUser.getRole(),
                 savedUser.getStatus(),
                 savedUser.getCreatedAt());
     }

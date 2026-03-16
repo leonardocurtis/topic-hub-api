@@ -1,13 +1,17 @@
 package io.github.leo.topichub.exception;
 
 import io.github.leo.topichub.dto.error.ApiError;
+import io.github.leo.topichub.dto.error.ApiErrorResponse;
+import io.github.leo.topichub.dto.error.ApiErrorValidation;
 import jakarta.servlet.http.HttpServletRequest;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
 
 import java.time.LocalDateTime;
+import java.util.List;
 
 @RestControllerAdvice
 public class GlobalExceptionHandler {
@@ -104,5 +108,17 @@ public class GlobalExceptionHandler {
                 LocalDateTime.now());
 
         return ResponseEntity.status(errorType).body(error);
+    }
+
+    @ExceptionHandler(MethodArgumentNotValidException.class)
+    public ResponseEntity<ApiErrorResponse> handleMethodArgumentNotValidException(MethodArgumentNotValidException ex) {
+
+        List<ApiErrorValidation> fields = ex.getFieldErrors().stream()
+                .map(error -> new ApiErrorValidation(error.getField(), error.getDefaultMessage()))
+                .toList();
+
+        ApiErrorResponse response = new ApiErrorResponse(HttpStatus.BAD_REQUEST.value(), "Validation error", fields);
+
+        return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(response);
     }
 }
