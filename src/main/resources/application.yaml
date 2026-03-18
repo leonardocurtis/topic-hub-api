@@ -3,7 +3,7 @@ spring:
     name: topic-hub
 
   mongodb:
-    uri: mongodb://localhost:27017/topichub_api
+    uri: ${MONGODB_URI}
 
 api:
   security:
