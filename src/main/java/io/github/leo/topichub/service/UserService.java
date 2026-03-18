@@ -39,7 +39,7 @@ public class UserService {
     public CreateUserResponse registerUser(CreateUserRequest dto) {
 
         if (repository.findByEmail(dto.email()).isPresent()) {
-            throw new ConflictException("Email already registered");
+            throw new ConflictException("Email " + dto.email() + " is already taken");
         }
 
         var user = new User();
@@ -61,7 +61,9 @@ public class UserService {
             throw new ForbiddenException("You cannot change your own role");
         }
 
-        var user = repository.findById(id).orElseThrow(() -> new ResourceNotFoundException("User not found"));
+        var user = repository
+                .findByIdAndStatus(id, AccountStatus.ACTIVE)
+                .orElseThrow(() -> new ResourceNotFoundException("User not found"));
 
         user.updateRole(dto.role());
 
@@ -192,15 +194,9 @@ public class UserService {
 
     public LoginResponse login(LoginRequest dto) {
 
-        var authenticationToken = new UsernamePasswordAuthenticationToken(dto.email(), dto.password());
-
-        var authentication = manager.authenticate(authenticationToken);
+        var authentication = manager.authenticate(new UsernamePasswordAuthenticationToken(dto.email(), dto.password()));
 
         var user = (User) authentication.getPrincipal();
-
-        if (user.getStatus() == AccountStatus.SUSPENDED) {
-            throw new ForbiddenException("Account suspended");
-        }
 
         if (user.getStatus() == AccountStatus.DEACTIVATED) {
             user.reactivate();

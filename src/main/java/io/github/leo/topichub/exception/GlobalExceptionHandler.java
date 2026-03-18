@@ -1,124 +1,95 @@
 package io.github.leo.topichub.exception;
 
-import io.github.leo.topichub.dto.error.ApiError;
-import io.github.leo.topichub.dto.error.ApiErrorResponse;
-import io.github.leo.topichub.dto.error.ApiErrorValidation;
 import jakarta.servlet.http.HttpServletRequest;
 import org.springframework.http.HttpStatus;
+import org.springframework.http.MediaType;
+import org.springframework.http.ProblemDetail;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.AccessDeniedException;
+import org.springframework.security.authentication.DisabledException;
 import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
 
-import java.time.LocalDateTime;
+import java.net.URI;
+import java.time.Instant;
 import java.util.List;
+import java.util.Map;
 
 @RestControllerAdvice
 public class GlobalExceptionHandler {
 
     @ExceptionHandler(ConflictException.class)
-    public ResponseEntity<ApiError> handleConflictException(ConflictException ex, HttpServletRequest request) {
-
-        HttpStatus errorType = HttpStatus.CONFLICT;
-
-        ApiError error = new ApiError(
-                errorType.value(),
-                errorType.getReasonPhrase(),
-                ex.getMessage(),
-                request.getRequestURI(),
-                LocalDateTime.now());
-
-        return ResponseEntity.status(errorType).body(error);
+    public ResponseEntity<ProblemDetail> handleConflictException(ConflictException ex, HttpServletRequest request) {
+        return buildProblem(HttpStatus.CONFLICT, ex.getMessage(), "conflict", request);
     }
 
     @ExceptionHandler(ResourceNotFoundException.class)
-    public ResponseEntity<ApiError> handleResourceNotFoundException(
+    public ResponseEntity<ProblemDetail> handleResourceNotFoundException(
             ResourceNotFoundException ex, HttpServletRequest request) {
-
-        HttpStatus errorType = HttpStatus.NOT_FOUND;
-
-        ApiError error = new ApiError(
-                errorType.value(),
-                errorType.getReasonPhrase(),
-                ex.getMessage(),
-                request.getRequestURI(),
-                LocalDateTime.now());
-
-        return ResponseEntity.status(errorType).body(error);
+        return buildProblem(HttpStatus.NOT_FOUND, ex.getMessage(), "resource-not-found", request);
     }
 
-    @ExceptionHandler(org.springframework.security.access.AccessDeniedException.class)
-    public ResponseEntity<ApiError> handleAccessDeniedException(
+    @ExceptionHandler(AccessDeniedException.class)
+    public ResponseEntity<ProblemDetail> handleAccessDeniedException(
             org.springframework.security.access.AccessDeniedException ex, HttpServletRequest request) {
-
-        HttpStatus errorType = HttpStatus.FORBIDDEN;
-
-        ApiError error = new ApiError(
-                errorType.value(),
-                errorType.getReasonPhrase(),
-                ex.getMessage(),
-                request.getRequestURI(),
-                LocalDateTime.now());
-
-        return ResponseEntity.status(errorType).body(error);
+        return buildProblem(HttpStatus.FORBIDDEN, ex.getMessage(), "access-denied", request);
     }
 
     @ExceptionHandler(UnprocessableEntityException.class)
-    public ResponseEntity<ApiError> handleUnprocessableEntityException(
+    public ResponseEntity<ProblemDetail> handleUnprocessableEntityException(
             UnprocessableEntityException ex, HttpServletRequest request) {
-
-        HttpStatus errorType = HttpStatus.UNPROCESSABLE_CONTENT;
-
-        ApiError error = new ApiError(
-                errorType.value(),
-                errorType.getReasonPhrase(),
-                ex.getMessage(),
-                request.getRequestURI(),
-                LocalDateTime.now());
-
-        return ResponseEntity.unprocessableContent().body(error);
+        return buildProblem(HttpStatus.UNPROCESSABLE_CONTENT, ex.getMessage(), "unprocessable-entity", request);
     }
 
     @ExceptionHandler(ForbiddenException.class)
-    public ResponseEntity<ApiError> handleForbiddenException(ForbiddenException ex, HttpServletRequest request) {
-
-        HttpStatus errorType = HttpStatus.FORBIDDEN;
-
-        ApiError error = new ApiError(
-                errorType.value(),
-                errorType.getReasonPhrase(),
-                ex.getMessage(),
-                request.getRequestURI(),
-                LocalDateTime.now());
-
-        return ResponseEntity.status(errorType).body(error);
+    public ResponseEntity<ProblemDetail> handleForbiddenException(ForbiddenException ex, HttpServletRequest request) {
+        return buildProblem(HttpStatus.FORBIDDEN, ex.getMessage(), "forbidden", request);
     }
 
     @ExceptionHandler(InvalidPasswordException.class)
-    public ResponseEntity<ApiError> handleInvalidPasswordException(
+    public ResponseEntity<ProblemDetail> handleInvalidPasswordException(
             InvalidPasswordException ex, HttpServletRequest request) {
-
-        HttpStatus errorType = HttpStatus.BAD_REQUEST;
-
-        ApiError error = new ApiError(
-                errorType.value(),
-                errorType.getReasonPhrase(),
-                ex.getMessage(),
-                request.getRequestURI(),
-                LocalDateTime.now());
-
-        return ResponseEntity.status(errorType).body(error);
+        return buildProblem(HttpStatus.BAD_REQUEST, ex.getMessage(), "invalid-password", request);
     }
 
     @ExceptionHandler(MethodArgumentNotValidException.class)
-    public ResponseEntity<ApiErrorResponse> handleMethodArgumentNotValidException(MethodArgumentNotValidException ex) {
+    public ResponseEntity<ProblemDetail> handleMethodArgumentNotValidException(
+            MethodArgumentNotValidException ex, HttpServletRequest request) {
 
-        List<ApiErrorValidation> fields = ex.getFieldErrors().stream()
-                .map(error -> new ApiErrorValidation(error.getField(), error.getDefaultMessage()))
+        List<Map<String, String>> fields = ex.getFieldErrors().stream()
+                .map(error -> Map.of(
+                        "field", error.getField(),
+                        "message", error.getDefaultMessage()))
                 .toList();
 
-        ApiErrorResponse response = new ApiErrorResponse(HttpStatus.BAD_REQUEST.value(), "Validation error", fields);
+        ProblemDetail problem = ProblemDetail.forStatusAndDetail(HttpStatus.BAD_REQUEST, "Validation error");
 
-        return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(response);
+        problem.setType(URI.create("topichub-api/errors/validation-error"));
+        problem.setInstance(URI.create(request.getRequestURI()));
+        problem.setProperty("timestamp", Instant.now());
+        problem.setProperty("fields", fields);
+
+        return ResponseEntity.status(HttpStatus.BAD_REQUEST)
+                .contentType(MediaType.APPLICATION_PROBLEM_JSON)
+                .body(problem);
+    }
+
+    @ExceptionHandler(DisabledException.class)
+    public ResponseEntity<ProblemDetail> handleDisabledException(DisabledException ex, HttpServletRequest request) {
+        return buildProblem(HttpStatus.FORBIDDEN, ex.getMessage(), "account-suspended", request);
+    }
+
+    private ResponseEntity<ProblemDetail> buildProblem(
+            HttpStatus status, String detail, String type, HttpServletRequest request) {
+
+        ProblemDetail problem = ProblemDetail.forStatusAndDetail(status, detail);
+        problem.setType(URI.create("topichub-api/errors/" + type));
+        problem.setInstance(URI.create(request.getRequestURI()));
+        problem.setProperty("timestamp", Instant.now());
+
+        return ResponseEntity.status(status)
+                .contentType(MediaType.APPLICATION_PROBLEM_JSON)
+                .body(problem);
     }
 }

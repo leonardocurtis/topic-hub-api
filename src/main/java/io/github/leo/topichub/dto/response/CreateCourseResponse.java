@@ -1,6 +1,19 @@
 package io.github.leo.topichub.dto.response;
 
+import io.swagger.v3.oas.annotations.media.Schema;
+
 import java.time.Instant;
 import java.util.List;
 
-public record CreateCourseResponse(String id, String name, Instant createdAt, List<String> categories) {}
+@Schema(description = "Response returned after creating a course")
+public record CreateCourseResponse(
+        @Schema(description = "Unique identifier of the newly created course")
+        String id,
+
+        @Schema(description = "Name of the created course") String name,
+
+        @Schema(description = "Timestamp of when the course was created (UTC)")
+        Instant createdAt,
+
+        @Schema(description = "List of category names associated with the course")
+        List<String> categories) {}

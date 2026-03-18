@@ -47,7 +47,7 @@ public class CourseService {
                 savedCourse.getId(), savedCourse.getName(), savedCourse.getCreatedAt(), savedCourse.getCategoryIds());
     }
 
-    public PageResponse<CoursesListResponse> listAllCategories(Pageable pp) {
+    public PageResponse<CoursesListResponse> listAllCourses(Pageable pp) {
 
         var page = courseRepository
                 .findAll(pp)

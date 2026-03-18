@@ -2,7 +2,6 @@ package io.github.leo.topichub.dto.response;
 
 import io.swagger.v3.oas.annotations.media.Schema;
 
-@Schema(description = "Authentication response containing JWT token")
+@Schema(description = "Response returned after successful authentication")
 public record LoginResponse(
-        @Schema(description = "JWT access token. Must be sent in the Authorization header as Bearer token")
-        String accessToken) {}
+        @Schema(description = "JWT authentication token") String accessToken) {}

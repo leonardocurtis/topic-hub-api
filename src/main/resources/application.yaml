@@ -11,4 +11,4 @@ api:
       secret: ${JWT_SECRET}
 
 springdoc:
-  packages-to-scan: io.github.leo.threadhub
+  packages-to-scan: io.github.leo.topichub
